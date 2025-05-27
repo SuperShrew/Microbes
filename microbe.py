@@ -1,6 +1,7 @@
 from cell import Cell
 import random
 
+
 class Microbe:
 	def __init__(self, size, structure, life_mult, coords):
 		self.size = size # defines the hitbox of the cell
