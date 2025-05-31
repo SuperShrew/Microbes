@@ -1,5 +1,6 @@
 from cell import Cell
 import random
+import time
 
 
 class Microbe:
@@ -55,78 +56,108 @@ class Microbe:
 					break
 			return env
 
-		if self.mover: # IMPORTANT: ADD COLLISIONS ASAP
-			direction = random.randint(1, 2)
-			if direction == 1:
-				self.coords[0] += random.randint(-1, 1)
-			if direction == 2:
-				self.coords[1] += random.randint(-1, 1)
-			if self.coords[0] < 0:
-				self.coords[0] = -self.coords[0]
-			if self.coords[1] < 0:
-				self.coords[1] = -self.coords[1]
-			self.calc_br()
-			while self.br_coords[0] >= self.e-1 or self.br_coords[1] >= self.e-1 or self.coords[0] >= self.e-1 or self.coords[1] >= self.e-1:
-				if self.br_coords[0] >= self.e-1 or self.coords[0] >= self.e-1:
-					self.coords[0] -= 1
-				if self.br_coords[1] >= self.e-1 or self.coords[1] >= self.e-1:
-					self.coords[1] -= 1
+		if self.mover:
+			dx = random.randint(-1, 1)
+			dy = random.randint(-1, 1)
+
+			# Proposed new coordinates
+			new_coords = [self.coords[0] + dx, self.coords[1] + dy]
+
+			# Clamp to grid bounds
+			new_coords[0] = max(0, min(new_coords[0], self.e - 1))
+			new_coords[1] = max(0, min(new_coords[1], self.e - 1))
+
+			# Calculate bottom-right bounds of the structure at new location
+			xs = [p[0] for p in self.structure]
+			ys = [p[1] for p in self.structure]
+			br_x = new_coords[0] + max(xs)
+			br_y = new_coords[1] + max(ys)
+
+			current_positions = set(self.occupied_positions())
+
+			# Check if it fits in the environment bounds
+			if br_x >= self.e or br_y >= self.e:
+				return  # Reject move
+
+			# Collision detection: check if any cell in the new location is occupied
+			collision = False
+			for rel in self.structure:
+				x = new_coords[0] + rel[0]
+				y = new_coords[1] + rel[1]
+				if not (0 <= x < self.e and 0 <= y < self.e):
+					collision = True
+					break
+				cell_type = env[y][x].type
+				if cell_type not in ("blank", "food")  and (x, y) not in current_positions:
+					collision = True
+					break
+
+
+			if not collision:
+				self.coords = new_coords
 				self.calc_br()
+
 		else:
 			for i in self.structure:
 				if self.structure[i].type == "producer":
 					if random.randint(1, 100) >= 95:
 						side = random.randint(1, 4)
+						x = self.coords[0] + i[0]
+						y = self.coords[1] + i[1]
+
+						# down
 						if side == 1:
-							try:
-								if env[self.coords[1] + i[1]+1][self.coords[0] + i[0]].type == "blank":
-									env[self.coords[1] + i[1]+1][self.coords[0] + i[0]] = Cell("food", -1)
-							except:
-								pass
+							if 0 <= y + 1 < self.e and 0 <= x < self.e:
+								if env[y + 1][x].type == "blank":
+									env[y + 1][x] = Cell("food", -1)
+
+						# right
 						elif side == 2:
-							try:
-								if env[self.coords[1] + i[1]][self.coords[0] + i[0]+1].type == "blank":
-									env[self.coords[1] + i[1]][self.coords[0] + i[0]+1] = Cell("food", -1)
-							except:
-								pass
+							if 0 <= y < self.e and 0 <= x + 1 < self.e:
+								if env[y][x + 1].type == "blank":
+									env[y][x + 1] = Cell("food", -1)
+
+						# up
 						elif side == 3:
-							try:
-								if env[self.coords[1] + i[1]-1][self.coords[0] + i[0]].type == "blank":
-									env[self.coords[1] + i[1]-1][self.coords[0] + i[0]] = Cell("food", -1)
-							except:
-								pass
+							if 0 <= y - 1 < self.e and 0 <= x < self.e:
+								if env[y - 1][x].type == "blank":
+									env[y - 1][x] = Cell("food", -1)
+
+						# left
 						elif side == 4:
-							try:
-								if env[self.coords[1] + i[1]][self.coords[0] + i[0]-1].type == "blank":
-									env[self.coords[1] + i[1]][self.coords[0] + i[0]-1] = Cell("food", -1)
-							except:
-								pass
+							if 0 <= y < self.e and 0 <= x - 1 < self.e:
+								if env[y][x - 1].type == "blank":
+									env[y][x - 1] = Cell("food", -1)
+
 		for i in self.structure:
 			if self.structure[i].type == "mouth":
-				try:
-					if env[self.coords[1] + i[1]+1][self.coords[0] + i[0]].type == "food":
-						env[self.coords[1] + i[1]+1][self.coords[0] + i[0]] = Cell("blank", -1)
+				x = self.coords[0] + i[0]
+				y = self.coords[1] + i[1]
+
+				# down
+				if 0 <= y + 1 < self.e - 1 and 0 <= x < self.e - 1:
+					if env[y + 1][x].type == "food":
+						env[y + 1][x] = Cell("blank", -1)
 						self.food += 1
-				except:
-					pass
-				try:
-					if env[self.coords[1] + i[1]][self.coords[0] + i[0]+1].type == "food":
-						env[self.coords[1] + i[1]][self.coords[0] + i[0]+1] = Cell("blank", -1)
+
+				# right
+				if 0 <= y < self.e - 1 and 0 <= x + 1 < self.e - 1:
+					if env[y][x + 1].type == "food":
+						env[y][x + 1] = Cell("blank", -1)
 						self.food += 1
-				except:
-					pass
-				try:
-					if env[self.coords[1] + i[1]-1][self.coords[0] + i[0]].type == "food":
-						env[self.coords[1] + i[1]-1][self.coords[0] + i[0]] = Cell("blank", -1)
+
+				# up
+				if 0 <= y - 1 < self.e - 1 and 0 <= x < self.e - 1:
+					if env[y - 1][x].type == "food":
+						env[y - 1][x] = Cell("blank", -1)
 						self.food += 1
-				except:
-					pass
-				try:
-					if env[self.coords[1] + i[1]][self.coords[0] + i[0]-1].type == "food":
-						env[self.coords[1] + i[1]][self.coords[0] + i[0]-1] = Cell("blank", -1)
+
+				# left
+				if 0 <= y < self.e - 1 and 0 <= x - 1 < self.e - 1:
+					if env[y][x - 1].type == "food":
+						env[y][x - 1] = Cell("blank", -1)
 						self.food += 1
-				except:
-					pass
+
 
 		# TODO: program killer
 		return env
@@ -146,20 +177,25 @@ class Microbe:
 			tempcoords = [self.coords[0] - 2 - self.size, self.coords[1]]
 		if d == 4:
 			tempcoords = [self.coords[0], self.coords[1] - 2 - self.size]
+		try:
+			for i in self.structure:
+				if not(env[i[1] + tempcoords[1]][i[0] + tempcoords[0]].type == "blank"):
+					return False
+				if env[i[1] + tempcoords[1]][i[0] + tempcoords[0]].type == "food":
+					return False
+		except IndexError:
+			return False
 
-		#for i in self.structure:
-		#	if env[i[]]
-
-		if self.coords[0] + 2 + self.size < self.e-1:
+		if self.coords[0] + 2 + self.size < self.e-1 and self.coords[0] + 2 + self.size >= 0:
 			if d == 1:
 				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0] + 2 + self.size, self.coords[1]], next_id))
-		if self.coords[1] + 2 + self.size < self.e-1:
+		if self.coords[1] + 2 + self.size < self.e-1 and self.coords[1] + 2 + self.size >= 0:
 			if d == 2:
 				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0], self.coords[1] + 2 + self.size], next_id))
-		if self.coords[0] - 2 - self.size < self.e-1:
+		if self.coords[0] - 2 - self.size < self.e-1 and self.coords[0] - 2 - self.size >= 0:
 			if d == 3:
 				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0] - 2 - self.size, self.coords[1]], next_id))
-		if self.coords[1] - 2 - self.size < self.e-1:
+		if self.coords[1] - 2 - self.size < self.e-1 and self.coords[1] - 2 - self.size >= 0:
 			if d == 4:
 				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0], self.coords[1] - 2 - self.size], next_id))
 		self.food -= self.cell_amount*2
@@ -169,3 +205,5 @@ class Microbe:
 		for i in self.structure:
 			env[self.coords[1]+i[1]][self.coords[0]+i[0]] = self.structure[i]
 		return env
+	def occupied_positions(self):
+		return [(self.coords[0] + p[0], self.coords[1] + p[1]) for p in self.structure]

@@ -4,7 +4,7 @@ from colours import *
 import time
 import os
 
-environment = [[Cell("food", -1) for _ in range(0, 40)] for _ in range(0, 40)]
+environment = [[Cell("blank", -1) for _ in range(0, 40)] for _ in range(0, 40)]
 
 # testing stuff below \/
 print(environment)
@@ -23,12 +23,15 @@ test_struct = {
 }
 
 fly_struct = {
-	(0, 0): Cell("mouth", 2),
+	(0, 1): Cell("mouth", 2),
+	(1, 0): Cell("mouth", 2),
+	(2, 1): Cell("mouth", 2),
+	(1, 2): Cell("mouth", 2),
 	(1, 1): Cell("mover", 2)
 }
 
-test = Microbe(test_struct, 1100, [4, 4], 1)
-fly = Microbe(fly_struct, 100, [6, 6], 2)
+test = Microbe(test_struct, 100, [4, 4], 1)
+fly = Microbe(fly_struct, 150, [7, 7], 2)
 
 #for i in test.structure:
 #	for x in i:
@@ -58,12 +61,18 @@ microbes = [test, fly]
 
 while True:
 	for a, i in enumerate(microbes):
-		environment = i.tick(microbes, environment)
+		i.tick(microbes, environment)
 		#print("id:", i.id)
 		#print("food:", i.food)
 		#print("health:", i.health)
 		#print("age:", i.age)
+	for a, i in enumerate(microbes):
+		new = i.attempt_mitosis(next_id, microbes, environment)
+		if new:
+			microbes = new
+			next_id += 1
 	draw_env()
+	print("organism count:", len(microbes))
 	time.sleep(0.1)
 	for i in range(0, len(environment)): # iterate numerically through first layer of environment
 		for x in range(0, len(environment[0])): # iterate numerically through each item in the layer of environment
@@ -71,11 +80,6 @@ while True:
 				pass
 			else: 
 				environment[i][x] = Cell("blank", -1)
-	for a, i in enumerate(microbes):
-		new = i.attempt_mitosis(next_id, microbes, environment)
-		if new:
-			microbes = new
-			next_id += 1
 	os.system("clear")
 	for i in microbes:
 		i.draw(environment)
