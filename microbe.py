@@ -4,8 +4,8 @@ import time
 
 
 class Microbe:
-	def __init__(self, structure, life_mult, coords, id):
-		self.e = 40
+	def __init__(self, structure, life_mult, coords, id, mutation_rate=10):
+		self.e = 130
 		self.size = 0 # defines the hitbox of the  (not currently needed)
 		self.structure = structure # dictionary of cells and their coords relative to the top left corner
 		self.coords = coords # top left corner of hitbox
@@ -20,10 +20,47 @@ class Microbe:
 		self.mover = False
 		self.br_coords = [0, 0]
 		self.calc_br()
+		self.mutation_rate = mutation_rate
 		for i in self.structure:
-			if structure[i].type == "mover":
+			if self.structure[i].type == "mover":
 				self.mover = True
 				break
+
+	def mutate(self, next_id):
+		new_struct = {}
+		for i in self.structure:
+			new_struct[i] = self.structure[i]
+			new_struct[i].id = next_id
+
+		mutation_type = random.choice(['remove', 'change', 'add'])
+
+		# Must have at least 2 cells to remove
+		if mutation_type == 'remove' and len(new_struct) > 1:
+			key = random.choice(list(new_struct.keys()))
+			del new_struct[key]
+
+		elif mutation_type == 'change':
+			key = random.choice(list(new_struct.keys()))
+			cell = new_struct[key]
+			options = ["mouth", "producer", "mover", "armour", "killer"]
+			options.remove(cell.type)
+			new_type = random.choice(options)
+			new_struct[key] = Cell(new_type, self.id)
+		elif mutation_type == 'add':
+			# Pick a random existing cell
+			existing_keys = list(new_struct.keys())
+			base_x, base_y = random.choice(existing_keys)
+
+			# Try to place a new cell adjacent to it
+			directions = [(1,0), (-1,0), (0,1), (0,-1)]
+			random.shuffle(directions)
+			for dx, dy in directions:
+				new_pos = (base_x + dx, base_y + dy)
+				if new_pos not in new_struct:
+					new_type = random.choice(["mouth", "producer", "mover", "armour", "killer"])
+					new_struct[new_pos] = Cell(new_type, self.id)
+					break  # only add one cell
+		return new_struct
 
 	def calc_br(self):
 		xs = [p[0] for p in self.structure]
@@ -128,45 +165,33 @@ class Microbe:
 							if 0 <= y < self.e and 0 <= x - 1 < self.e:
 								if env[y][x - 1].type == "blank":
 									env[y][x - 1] = Cell("food", -1)
-
+		directions = [(0,1), (1,0), (0,-1), (-1,0)]
 		for i in self.structure:
 			if self.structure[i].type == "mouth":
 				x = self.coords[0] + i[0]
 				y = self.coords[1] + i[1]
-
-				# down
-				if 0 <= y + 1 < self.e - 1 and 0 <= x < self.e - 1:
-					if env[y + 1][x].type == "food":
-						env[y + 1][x] = Cell("blank", -1)
+				for dx, dy in directions:
+					nx, ny = x + dx, y + dy
+					if 0 <= nx < self.e and 0 <= ny < self.e and env[ny][nx].type == "food":
+						env[ny][nx] = Cell("blank", -1)
 						self.food += 1
-
-				# right
-				if 0 <= y < self.e - 1 and 0 <= x + 1 < self.e - 1:
-					if env[y][x + 1].type == "food":
-						env[y][x + 1] = Cell("blank", -1)
-						self.food += 1
-
-				# up
-				if 0 <= y - 1 < self.e - 1 and 0 <= x < self.e - 1:
-					if env[y - 1][x].type == "food":
-						env[y - 1][x] = Cell("blank", -1)
-						self.food += 1
-
-				# left
-				if 0 <= y < self.e - 1 and 0 <= x - 1 < self.e - 1:
-					if env[y][x - 1].type == "food":
-						env[y][x - 1] = Cell("blank", -1)
-						self.food += 1
-
 
 		# TODO: program killer
 		return env
 
 	def attempt_mitosis(self, next_id, microbes, env):
-
 		if self.food < self.cell_amount*2:
 			return False
-
+		if random.randint(1, 100) <= self.mutation_rate:
+			new_struct = self.mutate(next_id)
+		else:
+			new_struct = {}
+			for i in self.structure:
+				new_struct[i] = self.structure[i]
+				new_struct[i].id = next_id
+			
+		#print(new_struct)
+		#input()
 		d = random.randint(1, 4)
 
 		if d == 1:
@@ -178,26 +203,24 @@ class Microbe:
 		if d == 4:
 			tempcoords = [self.coords[0], self.coords[1] - 2 - self.size]
 		try:
-			for i in self.structure:
-				if not(env[i[1] + tempcoords[1]][i[0] + tempcoords[0]].type == "blank"):
-					return False
-				if env[i[1] + tempcoords[1]][i[0] + tempcoords[0]].type == "food":
+			for i in new_struct:
+				if not(env[i[1] + tempcoords[1]][i[0] + tempcoords[0]].type == "blank"):# or env[i[1] + tempcoords[1]][i[0] + tempcoords[0]].type == "food"):
 					return False
 		except IndexError:
 			return False
 
 		if self.coords[0] + 2 + self.size < self.e-1 and self.coords[0] + 2 + self.size >= 0:
 			if d == 1:
-				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0] + 2 + self.size, self.coords[1]], next_id))
+				microbes.append(Microbe(new_struct, self.life_mult, [self.coords[0] + 2 + self.size, self.coords[1]], next_id))
 		if self.coords[1] + 2 + self.size < self.e-1 and self.coords[1] + 2 + self.size >= 0:
 			if d == 2:
-				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0], self.coords[1] + 2 + self.size], next_id))
+				microbes.append(Microbe(new_struct, self.life_mult, [self.coords[0], self.coords[1] + 2 + self.size], next_id))
 		if self.coords[0] - 2 - self.size < self.e-1 and self.coords[0] - 2 - self.size >= 0:
 			if d == 3:
-				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0] - 2 - self.size, self.coords[1]], next_id))
+				microbes.append(Microbe(new_struct, self.life_mult, [self.coords[0] - 2 - self.size, self.coords[1]], next_id))
 		if self.coords[1] - 2 - self.size < self.e-1 and self.coords[1] - 2 - self.size >= 0:
 			if d == 4:
-				microbes.append(Microbe(self.structure, self.life_mult, [self.coords[0], self.coords[1] - 2 - self.size], next_id))
+				microbes.append(Microbe(new_struct, self.life_mult, [self.coords[0], self.coords[1] - 2 - self.size], next_id))
 		self.food -= self.cell_amount*2
 		return microbes
 

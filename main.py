@@ -4,10 +4,10 @@ from colours import *
 import time
 import os
 
-environment = [[Cell("blank", -1) for _ in range(0, 40)] for _ in range(0, 40)]
+environment = [[Cell("blank", -1) for _ in range(0, 130)] for _ in range(0, 130)]
 
 # testing stuff below \/
-print(environment)
+#print(environment)
 
 #test_struct = [
 #	[Cell("producer", 1), Cell("blank", 1), Cell("producer", 1)],
@@ -15,23 +15,23 @@ print(environment)
 #	[Cell("producer", 1), Cell("blank", 1), Cell("producer", 1)]]
 
 test_struct = {
+	#(0, 0): Cell("producer", 1),
 	(1, 1): Cell("mouth", 1),
-	(2, 2): Cell("producer", 1),
-	#(1, 1): Cell("mouth", 1),
 	(0, 0): Cell("producer", 1),
-	#(2, 2): Cell("producer", 1)
+	(2, 2): Cell("producer", 1)
+	#(2, 0): Cell("producer", 1)
 }
 
 fly_struct = {
 	(0, 1): Cell("mouth", 2),
-	(1, 0): Cell("mouth", 2),
-	(2, 1): Cell("mouth", 2),
-	(1, 2): Cell("mouth", 2),
+	#(1, 0): Cell("mouth", 2),
+	#(2, 1): Cell("mouth", 2),
+	#(1, 2): Cell("mouth", 2),
 	(1, 1): Cell("mover", 2)
 }
 
-test = Microbe(test_struct, 100, [4, 4], 1)
-fly = Microbe(fly_struct, 150, [7, 7], 2)
+test = Microbe(test_struct, 100, [25, 25], 1)
+#fly = Microbe(fly_struct, 100, [7, 7], 2)
 
 #for i in test.structure:
 #	for x in i:
@@ -57,7 +57,7 @@ def draw_env():
 # assigning variables
 next_id = 3
 
-microbes = [test, fly]
+microbes = [test]#, fly]
 
 while True:
 	for a, i in enumerate(microbes):
